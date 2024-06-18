@@ -36,8 +36,8 @@ To start using the SDK, please follow these steps:
    https://github.com/ButterflyNetwork/ImagingSDK-iOS
    ```
 1. Tap **Add Package**. If Xcode prompts for access to the keychain, enter your Mac’s password and tap **Always Allow**.
-1. Ensure that the **ButterflyImagingKit** package product and your target are selected, then tap **Add Package** to finish.
-1. Go to your target's **Info** tab, add a new row with the **Supported external accessory protocols** array. Set **Item 0** with the value `com.butterflynetinc.umap.v3` like so:
+1. In the **Choose Package Products** prompt, ensure that the correct app target is selected for the **ButterflyImagingKit** package product. Then tap **Add Package** to finish.
+1. Go to your target's **Info** tab, add a new row, and enter the key **Supported external accessory protocols**. Open the array's drop-down and set the first row (**Item 0**) with the value `com.butterflynetinc.umap.v3` like so:
 
    <img width="500" alt="Supported External Accessory Protocols" src="Docs/Resources/UISupportedExternalAccessoryProtocols.png">
 
