@@ -41,6 +41,10 @@ To start using the SDK, please follow these steps:
 
    <img width="500" alt="Supported External Accessory Protocols" src="Docs/Resources/UISupportedExternalAccessoryProtocols.png">
 
+## Troubleshooting
+
+If you encounter any issues during the integration of the SDK, please refer to the [Troubleshoot](Docs/Troubleshoot.md) page.
+
 ## Quick Start
 
 Here's a brief guide to quickly get started with imaging using SwiftUI Previews. Follow these five key steps:

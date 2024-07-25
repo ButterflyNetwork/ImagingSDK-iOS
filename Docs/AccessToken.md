@@ -3,7 +3,7 @@
 Follow these steps to allow Xcode Swift Package Manager to access our package's binary target:
 
 1. Quit the **Xcode** and **Keychain Access** apps completely **(⌘+Q)**.
-1. Run the following command in the **Terminal** app, replacing `USERNAME` and `ACCESS_TOKEN` with your Butterfly **username** and **access token**:
+1. Open the **Terminal** app and run the following command, replacing `USERNAME` and `ACCESS_TOKEN` with the Butterfly **username** and **access token** provided during onboarding (note: these are not your email and password credentials):
    ```sh
    security add-internet-password \
       -a USERNAME \
