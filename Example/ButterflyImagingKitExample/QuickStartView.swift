@@ -1,4 +1,4 @@
-/// Copyright 2012-2024 (C) Butterfly Network, Inc.
+/// Copyright 2012-2025 (C) Butterfly Network, Inc.
 
 import ButterflyImagingKit
 import SwiftUI

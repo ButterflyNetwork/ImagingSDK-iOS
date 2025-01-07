@@ -1,4 +1,4 @@
-/// Copyright 2012-2024 (C) Butterfly Network, Inc.
+/// Copyright 2012-2025 (C) Butterfly Network, Inc.
 
 import ButterflyImagingKit
 import SwiftUI
@@ -32,8 +32,7 @@ struct ContentView: View {
                                 await model.connectSimulatedProbe()
                             }
                         }
-                    } else if model.probe?.state == .ready,
-                              !model.availablePresets.isEmpty {
+                    } else if !model.availablePresets.isEmpty {
                         if model.probe?.isSimulated == true {
                             Button("Disconnect simulated probe") {
                                 Task {
@@ -190,8 +189,15 @@ struct ContentView: View {
                 availablePresets = state.availablePresets
             }
 
-            Task { try? await imaging.startup(clientKey: clientKey) }
+            Task { try? await model.startup(clientKey: clientKey) }
         }
+        .alert(
+            "Error",
+            isPresented: $model.showingAlert,
+            presenting: model.alertError,
+            actions: { _ in Button("OK", role: .cancel) { model.clearError() } },
+            message: { detail in Text("Error: \(String(describing: detail))") }
+        )
     }
 }
 

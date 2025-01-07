@@ -19,7 +19,7 @@ The SDK consists of a few key objects:
 
 ## Requirements
 
-* Built and tested using Xcode 15.0.1 and macOS Sonoma 14.5.
+* Built and tested using Xcode 16.0 and macOS Sonoma 14.6.
 * Available for iOS 16.0 or newer.
 * Apps developed using the SDK should only be installed on [Butterfly supported devices](https://support.butterflynetwork.com/hc/en-us/sections/360004521832-Mobile-Devices).
 * Not compatible with beta software.
@@ -122,4 +122,4 @@ And you should be good to go!
 
 ## License
 
-Copyright 2012-2024 (C) Butterfly Network, Inc.
+Copyright 2012-2025 (C) Butterfly Network, Inc.

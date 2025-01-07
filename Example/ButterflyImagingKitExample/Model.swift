@@ -1,4 +1,4 @@
-/// Copyright 2012-2024 (C) Butterfly Network, Inc.
+/// Copyright 2012-2025 (C) Butterfly Network, Inc.
 
 import ButterflyImagingKit
 import UIKit
@@ -22,6 +22,9 @@ class Model: ObservableObject {
     @Published var inProgress = false
     @Published var updating = false
     @Published var updateProgress: TimedProgress?
+
+    @Published var alertError: Error? { didSet { showingAlert = (alertError != nil) } }
+    @Published var showingAlert: Bool = false
 
     private let imaging = ButterflyImaging.shared
 
@@ -67,8 +70,13 @@ class Model: ObservableObject {
                 stage = .ready
             }
         case .startingImaging:
+            // If we have an image then we are “imaging”.
             if image != nil {
                 stage = .imaging
+            }
+            // If the user disconnects the probe while we are starting imaging, revert.
+            if state.probe.state == .disconnected {
+                stopImaging()
             }
         case .imaging:
             if state.probe.state == .disconnected {
@@ -86,12 +94,21 @@ class Model: ObservableObject {
         var parameters: PresetParameters? = nil
 
         // Send custom initial depth if it represents a change from the default one.
-        if let preset,
-           let depth,
-           preset.defaultDepth.converted(to: .centimeters).value != depth {
+        if
+            let preset,
+            let depth,
+            preset.defaultDepth.converted(to: .centimeters).value != depth
+        {
             parameters = PresetParameters(depth: .centimeters(depth))
         }
-        Task { try? await imaging.startImaging(preset: preset, parameters: parameters) }
+        Task {
+            do {
+                try await imaging.startImaging(preset: preset, parameters: parameters)
+            } catch {
+                alertError = error
+                print("Failed to startImaging, with error: \(error)")
+            }
+        }
     }
 
     func connectSimulatedProbe() async {
@@ -104,6 +121,15 @@ class Model: ObservableObject {
         inProgress = true
         await imaging.disconnectSimulatedProbe()
         inProgress = false
+    }
+
+    func startup(clientKey: String) async throws {
+        do {
+            try await imaging.startup(clientKey: clientKey)
+        } catch {
+            alertError = error
+            print("Failed to start up backend, with error: \(error)")
+        }
     }
 
     func stopImaging() {
@@ -126,5 +152,9 @@ class Model: ObservableObject {
             print("Update error: \(error)")
         }
         updating = false
+    }
+
+    func clearError() {
+        alertError = nil
     }
 }
