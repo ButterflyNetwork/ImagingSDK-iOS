@@ -22,6 +22,7 @@ struct ContentView: View {
             switch model.stage {
             case .startingUp:
                 Text("Initializing...")
+
             case .ready:
                 VStack(spacing: 10) {
                     if model.inProgress {
@@ -60,11 +61,14 @@ struct ContentView: View {
                     Spacer()
                 }
                 .padding()
+
             case .updateNeeded:
                 UpdateFirmwareView()
                     .environmentObject(model)
+
             case .startingImaging:
                 ProgressView()
+
             case .imaging:
                 if let image = model.image {
                     Image(uiImage: image)
@@ -163,7 +167,6 @@ struct ContentView: View {
             .padding()
         }
         .onAppear {
-            print("appear")
             imaging.states = { state, imagingStateChanges in
 
                 // Check for state changes.

@@ -33,6 +33,12 @@ class Model: ObservableObject {
         imaging.licenseStates = { [weak self] in
             self?.licenseState = $0
         }
+
+        // Receive logs from the Butterfly Imaging SDK:
+        imaging.clientLoggingCallback = { string, level in
+            print("Butterfly SDK (level='\(level)': \(string)")
+        }
+        imaging.isClientLoggingEnabled = true
     }
 
     func setState(_ state: ImagingState, imagingStateChanges: ImagingStateChanges) {
@@ -126,6 +132,12 @@ class Model: ObservableObject {
     func startup(clientKey: String) async throws {
         do {
             try await imaging.startup(clientKey: clientKey)
+
+            // (Optional) setting up local client logging.
+            imaging.isClientLoggingEnabled = true
+            imaging.clientLoggingCallback = { message, severity in
+                 print("[ButterflyImagingKitExample]: [\(severity)] \(message)")
+            }
         } catch {
             alertError = error
             print("Failed to start up backend, with error: \(error)")
