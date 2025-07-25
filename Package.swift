@@ -2,14 +2,14 @@
 
 import PackageDescription
 
-// Release: https://github.com/ButterflyNetwork/ButterflySDKIOS/releases/tag/1.2.4
-let binaryUrl = "https://sdk.butterflynetwork.com/garden/ButterflyImagingKit/1.2.4/ButterflyImagingKit.xcframework.zip"
-let binaryChecksum = "a227994a35e8748f36b4d1d5ae63c6900e3d509ff712ed3d353af8904cdef9ab"
+// Release: https://github.com/ButterflyNetwork/ButterflySDKIOS/releases/tag/2.0.0-beta.1
+let binaryUrl = "https://sdk.butterflynetwork.com/garden/ButterflyImagingKit/2.0.0-beta.1/ButterflyImagingKit.xcframework.zip"
+let binaryChecksum = "04907fc227d95730fb9f50ca7073f28bf3c5fd8bc918e5b347b246bea2cb9250"
 
 let package = Package(
     name: "Butterfly",
     platforms: [
-        .iOS(.v16),
+        .iOS(.v17),
     ],
     products: [
         .library(

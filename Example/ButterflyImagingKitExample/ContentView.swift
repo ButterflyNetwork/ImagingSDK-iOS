@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var controlColorGain = 0.0
     @State private var controlPreset: ImagingPreset?
     @State private var controlMode: UltrasoundMode = .bMode
+    @State private var statusPanelIndex: String?
 
     let imaging = ButterflyImaging.shared
 
@@ -27,6 +28,8 @@ struct ContentView: View {
                 VStack(spacing: 10) {
                     if model.inProgress {
                         ProgressView()
+                    } else if model.probe?.state == .hardwareIncompatible {
+                        Text("Probe incompatible.")
                     } else if model.probe?.state == .disconnected {
                         Button("Connect a simulated probe") {
                             Task {
@@ -42,15 +45,18 @@ struct ContentView: View {
                                 }
                             }
                         }
+
                         PresetPicker(controlPreset: $initialPreset, availablePresets: $availablePresets)
                             .onChange(of: initialPreset) { preset in
                                 guard let preset else { return }
                                 initialDepth = preset.defaultDepth.value
                                 initialDepthBounds = preset.depthBounds
                             }
+
                         if initialPreset != nil {
                             BoundsSlider(title: "Depth", control: $initialDepth, bounds: $initialDepthBounds)
                         }
+
                         Button("Start imaging!") {
                             // Probe (real or simulated) needs to be connected before tapping this.
                             model.startImaging(preset: initialPreset, depth: initialDepth)
@@ -158,6 +164,10 @@ struct ContentView: View {
                         }
                     }
 
+                    Text(statusPanelIndex ?? "-")
+                        .opacity(0.5)
+                        .font(.system(size: 12))
+
                     Text("license: \(String(describing: model.licenseState))")
                         .opacity(0.5)
                         .font(.system(size: 12))
@@ -186,6 +196,8 @@ struct ContentView: View {
                 if model.colorGain != state.colorGain {
                     controlColorGain = Double(state.colorGain)
                 }
+
+                statusPanelIndex = state.formttedStatusPanelIndex
 
                 // Set the new state.
                 model.setState(state, imagingStateChanges: imagingStateChanges)

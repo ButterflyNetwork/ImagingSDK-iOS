@@ -72,3 +72,9 @@ extension Measurement {
         Measurement<UnitLength>(value: value, unit: .centimeters)
     }
 }
+
+extension ImagingState {
+    var formttedStatusPanelIndex: String? {
+        return "\(self.mechanicalPanelIndex)\n\(self.softTissueIndex)\n\(self.boneIndex)"
+    }
+}

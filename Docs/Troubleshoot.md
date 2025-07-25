@@ -1,5 +1,6 @@
+# Troubleshooting
 
-# Troubleshoot
+## Installation
 
 In case any issues were encountered during installation of the SDK, please follow these steps to gather more details and examine if it matches one of the known issues below.
 
@@ -11,6 +12,17 @@ In case any issues were encountered during installation of the SDK, please follo
 [^1]: The “Report navigator” helps you view detailed reports of your project’s build processes. Errors related to package resolution will appear in the “Resolve Packages” report, while compilation errors will show up in the “Build” report.
 
 [^2]: Exporting the error report helps our support team diagnose the issue more effectively.
+
+## Operation
+
+To help better understand how the SDK works, or to aid debugging, a host app can register a hook to receive logs from the SDK.
+
+```swift
+imaging.clientLoggingCallback = { string, level in
+    print("Butterfly SDK (level='\(level)'): \(string)")
+}
+imaging.isClientLoggingEnabled = true
+```
 
 ## Known issues
 
