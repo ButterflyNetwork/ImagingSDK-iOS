@@ -2,9 +2,9 @@
 
 import PackageDescription
 
-// Release: https://github.com/ButterflyNetwork/ButterflySDKIOS/releases/tag/2.0.0-beta.1
-let binaryUrl = "https://sdk.butterflynetwork.com/garden/ButterflyImagingKit/2.0.0-beta.1/ButterflyImagingKit.xcframework.zip"
-let binaryChecksum = "04907fc227d95730fb9f50ca7073f28bf3c5fd8bc918e5b347b246bea2cb9250"
+// Release: https://github.com/ButterflyNetwork/ButterflySDKIOS/releases/tag/2.0.0
+let binaryUrl = "https://sdk.butterflynetwork.com/garden/ButterflyImagingKit/2.0.0/ButterflyImagingKit.xcframework.zip"
+let binaryChecksum = "921f8dbce9d7d448a9322f4449297e85c3c42b214e9489018a9523166d726023"
 
 let package = Package(
     name: "Butterfly",

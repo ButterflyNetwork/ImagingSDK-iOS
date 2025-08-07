@@ -384,7 +384,7 @@
 			repositoryURL = "https://github.com/ButterflyNetwork/ImagingSDK-iOS";
 			requirement = {
 				kind = exactVersion;
-				version = 2.0.0-beta.1;
+				version = 2.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
