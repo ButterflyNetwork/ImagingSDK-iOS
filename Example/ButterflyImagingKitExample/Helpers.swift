@@ -75,6 +75,6 @@ extension Measurement {
 
 extension ImagingState {
     var formttedStatusPanelIndex: String? {
-        return "\(self.mechanicalPanelIndex)\n\(self.softTissueIndex)\n\(self.boneIndex)"
+        return "\(self.mechanicalIndex)\n\(self.thermalIndex.softTissue)\n\(self.thermalIndex.bone)"
     }
 }
