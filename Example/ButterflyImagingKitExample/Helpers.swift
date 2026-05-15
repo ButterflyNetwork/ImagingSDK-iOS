@@ -30,7 +30,8 @@ extension Probe {
     }
 }
 
-extension ImagingPreset: Identifiable, Hashable {
+extension ImagingPreset: @retroactive Equatable {}
+extension ImagingPreset: @retroactive Identifiable, @retroactive Hashable {
     public var id: String { self.uuid }
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.id)
@@ -41,13 +42,16 @@ extension ImagingPreset: Identifiable, Hashable {
     }
 }
 
-extension UltrasoundMode: Identifiable {
+extension UltrasoundMode: @retroactive Identifiable {
     public var id: UltrasoundMode { self }
     public var description: String {
         switch self {
         case .bMode: return "B-Mode"
         case .mMode: return "M-Mode"
         case .colorDoppler: return "Color Doppler"
+        case .multiSlice: return "iQ Slice"
+        case .autofan: return "iQ Fan"
+        case .biplane: return "Biplane"
         @unknown default: return ""
         }
     }

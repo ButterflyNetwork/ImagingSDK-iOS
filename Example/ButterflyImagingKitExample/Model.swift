@@ -14,6 +14,7 @@ class Model: ObservableObject {
     @Published var depthBounds = Measurement.centimeters(0)...Measurement.centimeters(0)
     @Published var gain = 0
     @Published var image: UIImage?
+    @Published var imageRealWorldRect: Rect = .zero
     @Published var licenseState: ButterflyImaging.LicenseState = .invalid
     @Published var mode = UltrasoundMode.bMode
     @Published var preset: ImagingPreset?
@@ -25,6 +26,15 @@ class Model: ObservableObject {
 
     @Published var alertError: Error? { didSet { showingAlert = (alertError != nil) } }
     @Published var showingAlert: Bool = false
+
+    @Published var secondaryImage: UIImage?
+    @Published var biplaneParameters: BiplaneParameters?
+    @Published var imageMetadata: ButterflyImage.Metadata?
+    @Published var mModeAngle: Measurement<UnitAngle> = .init(value: 0, unit: .degrees)
+    @Published var mModeAngleMax: Measurement<UnitAngle> = .init(value: 0, unit: .degrees)
+    // Accumulated sweep frames; customers collect these until isLastSweepFrame == true
+    @Published var sweepFrames: [UIImage] = []
+    @Published var showingSweepModal = false
 
     private let imaging = ButterflyImaging.shared
 
@@ -48,22 +58,91 @@ class Model: ObservableObject {
         depthBounds = state.depthBounds
         gain = state.gain
         mode = state.mode
+        mModeAngle = state.mModeAngle
+        mModeAngleMax = state.mModeAngleMax
         preset = state.preset
         probe = state.probe
 
         switch mode {
         case .bMode, .colorDoppler:
-            if imagingStateChanges.bModeImageChanged,
-               let img = state.bModeImage?.image {
-                image = img
+            if
+                imagingStateChanges.bModeImageChanged,
+                let bModeImage = state.bModeImage
+            {
+                image = bModeImage.image
+                imageRealWorldRect = bModeImage.realWorldCoordinates
             }
         case .mMode:
-            if imagingStateChanges.mModeImageChanged,
-               let img = state.mModeImage?.image {
-                image = img
+            if
+                imagingStateChanges.bModeImageChanged,
+                let bModeImage = state.bModeImage
+            {
+                image = bModeImage.image
+                imageRealWorldRect = bModeImage.realWorldCoordinates
             }
+            if
+                imagingStateChanges.mModeImageChanged,
+                let img = state.mModeImage?.image
+            {
+                secondaryImage = img
+            }
+        case .autofan:
+            if
+                imagingStateChanges.bModeImageChanged,
+                let bModeImage = state.bModeImage
+            {
+                image = bModeImage.image
+                imageRealWorldRect = bModeImage.realWorldCoordinates
+            }
+        case .multiSlice:
+            if
+                imagingStateChanges.bModeImageChanged,
+                let bModeImage = state.bModeImage
+            {
+                image = bModeImage.image
+                imageRealWorldRect = bModeImage.realWorldCoordinates
+                imageMetadata = bModeImage.metadata
+                // Only accumulate frames when not already displaying a completed sweep.
+                // Without this guard, the next sweep's frames would overwrite the modal contents
+                // and sweepFrameIndex == 0 from the new sweep would wipe the displayed frames.
+                if !showingSweepModal {
+                    if bModeImage.metadata?.sweepFrameIndex == 0 {
+                        sweepFrames = []
+                    }
+                    sweepFrames.append(bModeImage.image)
+                    if bModeImage.metadata?.isLastSweepFrame == true {
+                        showingSweepModal = true
+                        imaging.stopImaging()
+                    }
+                }
+            }
+        case .biplane:
+            if
+                imagingStateChanges.bModeImageChanged,
+                let bModeImage = state.bModeImage
+            {
+                image = bModeImage.image
+                imageRealWorldRect = bModeImage.realWorldCoordinates
+            }
+            if
+                imagingStateChanges.biplaneSecondaryImageChanged,
+                let img = state.biplaneSecondaryImage?.image
+            {
+                secondaryImage = img
+            }
+            biplaneParameters = state.biplaneParameters
         @unknown default:
             break
+        }
+
+        if mode != .biplane {
+            biplaneParameters = nil
+        }
+        if mode != .biplane, mode != .mMode {
+            secondaryImage = nil
+        }
+        if mode != .multiSlice {
+            imageMetadata = nil
         }
 
         switch stage {
@@ -95,7 +174,12 @@ class Model: ObservableObject {
         }
     }
 
-    func startImaging(preset: ImagingPreset? = nil, depth: Double? = nil) {
+    func startImaging(
+        preset: ImagingPreset? = nil,
+        depth: Double? = nil,
+        gain: Int? = nil,
+        colorGain: Int? = nil
+    ) {
         stage = .startingImaging
         var parameters: PresetParameters? = nil
 
@@ -105,7 +189,11 @@ class Model: ObservableObject {
             let depth,
             preset.defaultDepth.converted(to: .centimeters).value != depth
         {
-            parameters = PresetParameters(depth: .centimeters(depth))
+            parameters = PresetParameters(
+                depth: .centimeters(depth),
+                gain: gain,
+                colorGain: colorGain
+            )
         }
         Task {
             do {
@@ -148,6 +236,12 @@ class Model: ObservableObject {
         stage = .ready
         imaging.stopImaging()
         image = nil
+        imageRealWorldRect = .zero
+        secondaryImage = nil
+        biplaneParameters = nil
+        imageMetadata = nil
+        sweepFrames = []
+        showingSweepModal = false
     }
 
     /// Starts the firmware update process.

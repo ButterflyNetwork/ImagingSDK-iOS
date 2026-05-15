@@ -6,15 +6,17 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var model: Model
     @State private var availablePresets: [ImagingPreset] = []
-    @State private var initialPreset: ImagingPreset?
-    @State private var initialDepth = 10.0
-    @State private var initialDepthBounds = Measurement.centimeters(0)...Measurement.centimeters(0)
+    @State private var depthBounds = Measurement.centimeters(0)...Measurement.centimeters(0)
     @State private var controlDepth = 10.0
     @State private var controlGain = 50.0
     @State private var controlColorGain = 0.0
     @State private var controlPreset: ImagingPreset?
     @State private var controlMode: UltrasoundMode = .bMode
     @State private var statusPanelIndex: String?
+    @State private var controlPlanePosition: Float = 0
+    @State private var isDraggingPlane = false
+    @State private var controlMModeAngle: Float = 0
+    @State private var isDraggingMModeAngle = false
 
     let imaging = ButterflyImaging.shared
 
@@ -41,25 +43,28 @@ struct ContentView: View {
                             Button("Disconnect simulated probe") {
                                 Task {
                                     await model.disconnectSimulatedProbe()
-                                    initialPreset = nil
+                                    controlPreset = nil
                                 }
                             }
                         }
 
-                        PresetPicker(controlPreset: $initialPreset, availablePresets: $availablePresets)
-                            .onChange(of: initialPreset) { preset in
-                                guard let preset else { return }
-                                initialDepth = preset.defaultDepth.value
-                                initialDepthBounds = preset.depthBounds
+                        HStack {
+                            PresetPicker(controlPreset: $controlPreset, availablePresets: $availablePresets)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .onChange(of: controlPreset, initial: true) { _, preset in
+                                    guard let preset else { return }
+                                    controlDepth = preset.defaultDepth.value
+                                    depthBounds = preset.depthBounds
+                                }
+                            Button("Start imaging!") {
+                                // Probe (real or simulated) needs to be connected before tapping this.
+                                model.startImaging(preset: controlPreset, depth: controlDepth)
                             }
-
-                        if initialPreset != nil {
-                            BoundsSlider(title: "Depth", control: $initialDepth, bounds: $initialDepthBounds)
+                            .fixedSize()
                         }
 
-                        Button("Start imaging!") {
-                            // Probe (real or simulated) needs to be connected before tapping this.
-                            model.startImaging(preset: initialPreset, depth: initialDepth)
+                        if controlPreset != nil {
+                            BoundsSlider(title: "Depth", control: $controlDepth, bounds: $depthBounds)
                         }
                     } else {
                         ProgressView()
@@ -76,24 +81,67 @@ struct ContentView: View {
                 ProgressView()
 
             case .imaging:
-                if let image = model.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .edgesIgnoringSafeArea(.all)
-                }
-                VStack {
-                    Button("Stop imaging") {
-                        model.stopImaging()
-                        initialPreset = nil
-                    }
-                    PresetPicker(controlPreset: $controlPreset, availablePresets: $availablePresets)
-                        .onChange(of: controlPreset) { preset in
-                            guard let preset else { return }
-                            imaging.setPreset(preset, parameters: nil)
-                            self.controlMode = .bMode
-                            print("change preset: \(preset.name); mode: \(controlMode.description)")
+                if model.mode == .biplane {
+                    HStack(spacing: 0) {
+                        if let image = model.image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .overlay {
+                                    if let params = model.biplaneParameters {
+                                        PerpPlaneLineOverlay(
+                                            isLinearPreset: controlPreset?.isLinearPreset ?? false,
+                                            controlPlanePosition: controlPlanePosition,
+                                            imageRealWorldRect: model.imageRealWorldRect,
+                                            params: params
+                                        )
+                                    }
+                                }
                         }
+                        if let secondary = model.secondaryImage {
+                            Image(uiImage: secondary)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        }
+                    }
+                    .ignoresSafeArea()
+                } else if let image = model.image {
+                    HStack(spacing: 0) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .overlay {
+                                if model.mode == .mMode {
+                                    MModeLineOverlay(controlAngle: controlMModeAngle)
+                                }
+                            }
+                        if let secondary = model.secondaryImage {
+                            Image(uiImage: secondary)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        }
+                    }
+                    .ignoresSafeArea()
+                }
+            }
+
+            if model.stage == .imaging {
+                VStack(spacing: 4) {
+                    HStack {
+                        PresetPicker(controlPreset: $controlPreset, availablePresets: $availablePresets)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .onChange(of: controlPreset, initial: true) { _, preset in
+                                guard let preset else { return }
+                                imaging.setPreset(preset, parameters: nil)
+                                self.controlMode = .bMode
+                            }
+                        Button("Stop imaging") {
+                            model.stopImaging()
+                            controlPreset = nil
+                        }
+                        .fixedSize()
+                    }
+
                     Picker("Select a mode", selection: $controlMode) {
                         if let supportedModes = model.preset?.supportedModes {
                             ForEach(supportedModes) {
@@ -102,20 +150,22 @@ struct ContentView: View {
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
-                    .onChange(of: controlMode) { value in
+                    .onChange(of: controlMode, initial: true) { _, value in
                         imaging.setMode(value)
-                        print("change mode: \(value.description) preset: \(String(describing: controlPreset?.name))")
                     }
+
                     BoundsSlider(title: "Depth", control: $controlDepth, bounds: $model.depthBounds) { editing in
                         guard !editing else { return }
                         imaging.setDepth(Measurement.centimeters(controlDepth))
                     }
+                    .disabled(model.mode == .multiSlice)
+
                     HStack {
                         Text("Gain:")
                         Slider(
                             value: Binding(get: {
                                 controlGain
-                            }, set: { (newVal) in
+                            }, set: { newVal in
                                 controlGain = newVal
                                 imaging.setGain(Int(controlGain))
                             }),
@@ -128,13 +178,15 @@ struct ContentView: View {
                             Text("100")
                         }
                     }
+                    .disabled(model.mode == .multiSlice)
+
                     if model.mode == .colorDoppler {
                         HStack {
                             Text("Color Gain:")
                             Slider(
                                 value: Binding(get: {
                                     controlColorGain
-                                }, set: { (newVal) in
+                                }, set: { newVal in
                                     controlColorGain = newVal
                                     imaging.setColorGain(Int(controlColorGain))
                                 }),
@@ -148,9 +200,94 @@ struct ContentView: View {
                             }
                         }
                     }
+
+                    if
+                        model.mode == .multiSlice,
+                        let meta = model.imageMetadata,
+                        let index = meta.sweepFrameIndex,
+                        let total = meta.sweepTotalFrames
+                    {
+                        Text("Frame \(index + 1) of \(total)")
+                            .font(.caption)
+                    }
+
+                    if model.mode == .biplane, let params = model.biplaneParameters {
+                        if controlPreset?.isLinearPreset == true {
+                            let maxX = params.maxXMeters.value
+                            HStack {
+                                Text("Plane Position:")
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(controlPlanePosition) },
+                                        set: { controlPlanePosition = Float($0) }
+                                    ),
+                                    in: -maxX...maxX,
+                                    onEditingChanged: { editing in
+                                        isDraggingPlane = editing
+                                        if !editing {
+                                            imaging.setPlaneLocation(
+                                                .linear(positionMeters: Measurement(
+                                                    value: Double(controlPlanePosition),
+                                                    unit: .meters
+                                                ))
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        } else {
+                            let maxAngle = params.maxAngleDegrees.value
+                            HStack {
+                                Text("Plane Angle:")
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(controlPlanePosition) },
+                                        set: { controlPlanePosition = Float($0) }
+                                    ),
+                                    in: -maxAngle...maxAngle,
+                                    onEditingChanged: { editing in
+                                        isDraggingPlane = editing
+                                        if !editing {
+                                            imaging.setPlaneLocation(
+                                                .sector(angleDegrees: Measurement(
+                                                    value: Double(controlPlanePosition),
+                                                    unit: .degrees
+                                                ))
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if model.mode == .mMode {
+                        let maxAngle = model.mModeAngleMax.converted(to: .degrees).value
+                        HStack {
+                            Text("M-Mode Angle:")
+                            Slider(
+                                value: Binding(
+                                    get: { Double(controlMModeAngle) },
+                                    set: { controlMModeAngle = Float($0) }
+                                ),
+                                in: -maxAngle...maxAngle,
+                                onEditingChanged: { editing in
+                                    isDraggingMModeAngle = editing
+                                    if !editing {
+                                        imaging.setMModeAngle(Measurement(
+                                            value: Double(controlMModeAngle), unit: .degrees
+                                        ))
+                                    }
+                                }
+                            )
+                        }
+                    }
                     Spacer()
                 }
-                .padding()
+                .padding(.top, 4)
+                .padding(.horizontal, 20)
+                .padding(.bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
 
             HStack {
@@ -199,6 +336,17 @@ struct ContentView: View {
 
                 statusPanelIndex = state.formttedStatusPanelIndex
 
+                if !isDraggingPlane, let params = state.biplaneParameters {
+                    let isLinear = state.preset?.isLinearPreset ?? false
+                    controlPlanePosition = isLinear
+                        ? params.xPositionMeters
+                        : params.perpendicularPlaneAngleDegrees
+                }
+
+                if !isDraggingMModeAngle {
+                    controlMModeAngle = Float(state.mModeAngle.converted(to: .degrees).value)
+                }
+
                 // Set the new state.
                 model.setState(state, imagingStateChanges: imagingStateChanges)
                 availablePresets = state.availablePresets
@@ -213,6 +361,21 @@ struct ContentView: View {
             actions: { _ in Button("OK", role: .cancel) { model.clearError() } },
             message: { detail in Text("Error: \(String(describing: detail))") }
         )
+        .sheet(isPresented: $model.showingSweepModal, onDismiss: {
+            Task { @MainActor in
+                imaging.setMode(.bMode)
+                model.startImaging(
+                    preset: controlPreset,
+                    depth: controlDepth,
+                    gain: Int(controlGain),
+                    colorGain: Int(controlColorGain)
+                )
+                controlMode = .bMode
+                model.sweepFrames = []
+            }
+        }) {
+            SweepFramesView(frames: model.sweepFrames)
+        }
     }
 }
 
@@ -228,17 +391,25 @@ struct PresetPicker: View {
     @Binding var availablePresets: [ImagingPreset]
 
     var body: some View {
-        HStack {
+        HStack(spacing: 0) {
             Text("Preset:")
             Picker("Preset", selection: $controlPreset) {
                 if controlPreset == nil {
                     Text("---").tag(nil as ImagingPreset?)
                 }
                 ForEach(availablePresets, id: \.self) {
-                    Text($0.name).tag($0 as ImagingPreset?)
+                    Text($0.displayName).tag($0 as ImagingPreset?)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private extension ImagingPreset {
+    var displayName: String {
+        let suffix = isVeterinary ? " (Vet)" : ""
+        return name + suffix
     }
 }
 
@@ -265,6 +436,83 @@ struct BoundsSlider: View {
                 },
                 onEditingChanged: onEditingChanged
             )
+        }
+    }
+}
+
+struct PerpPlaneLineOverlay: View {
+    let isLinearPreset: Bool
+    let controlPlanePosition: Float
+    let imageRealWorldRect: Rect
+    let params: BiplaneParameters
+
+    var body: some View {
+        Canvas { context, size in
+            let lineColor = Color.cyan.opacity(0.8)
+            if isLinearPreset {
+                let scalingFactor = size.width / imageRealWorldRect.width
+                let x = 0.5 * size.width + Double(controlPlanePosition) * scalingFactor
+
+                var line = Path()
+                line.move(to: CGPoint(x: x, y: 0))
+                line.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(line, with: .color(lineColor), lineWidth: 2)
+            } else {
+                let angleRad = Measurement(value: Double(controlPlanePosition), unit: UnitAngle.degrees)
+                    .converted(to: .radians)
+                    .value
+                let centerX = size.width / 2
+                let length = max(size.width, size.height)
+
+                var line = Path()
+                line.move(to: CGPoint(x: centerX, y: 0))
+                line.addLine(to: CGPoint(x: centerX + length * sin(angleRad), y: length * cos(angleRad)))
+                context.stroke(line, with: .color(lineColor), lineWidth: 2)
+            }
+        }
+    }
+}
+
+// MARK: - MModeLineOverlay
+
+/// Draws the M-mode scanline angle on the B-mode image.
+struct MModeLineOverlay: View {
+    let controlAngle: Float
+
+    var body: some View {
+        Canvas { context, size in
+            let lineColor = Color.cyan.opacity(0.8)
+            let angleRad = Double(controlAngle) * .pi / 180
+            let centerX = size.width / 2
+            let length = max(size.width, size.height)
+            var line = Path()
+            line.move(to: CGPoint(x: centerX, y: 0))
+            line.addLine(to: CGPoint(x: centerX + length * sin(angleRad), y: length * cos(angleRad)))
+            context.stroke(line, with: .color(lineColor), lineWidth: 2)
+        }
+    }
+}
+
+struct SweepFramesView: View {
+    let frames: [UIImage]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 8) {
+                    ForEach(frames.indices, id: \.self) { index in
+                        VStack(spacing: 4) {
+                            Image(uiImage: frames[index])
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                            Text("Frame \(index + 1)")
+                                .font(.caption2)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Sweep Frames (\(frames.count))")
         }
     }
 }
