@@ -122,4 +122,6 @@ And you should be good to go!
 
 ## License
 
-Copyright 2012-2025 (C) Butterfly Network, Inc.
+Copyright 2012-2026 (C) Butterfly Network, Inc.
+
+_**Disclaimer -- The Butterfly Imaging SDK and Sample App are not medical devices and are not intended to be used in the diagnosis, prevention, or treatment of diseases or medical conditions.**_
